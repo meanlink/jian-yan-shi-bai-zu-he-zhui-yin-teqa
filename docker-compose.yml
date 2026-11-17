@@ -34,8 +34,9 @@ services:
       JWT_SECRET: ${JWT_SECRET:-assay-rules-development-only}
       SEED_DEMO: ${SEED_DEMO:-true}
       ARTIFACT_DIR: /artifacts
+      ARTIFACT_DIR_NEXT: /artifacts-b
     ports: ["${BACKEND_PORT:-19211}:8000"]
-    volumes: ["analysis-artifacts:/artifacts"]
+    volumes: ["analysis-artifacts:/artifacts", "analysis-artifacts-b:/artifacts-b"]
     depends_on:
       db: {condition: service_healthy}
       redis: {condition: service_healthy}
@@ -50,7 +51,7 @@ services:
     container_name: ${COMPOSE_PROJECT_NAME:-assay-rules}-worker
     command: ["python", "-m", "src.worker"]
     environment: *app-env
-    volumes: ["analysis-artifacts:/artifacts"]
+    volumes: ["analysis-artifacts:/artifacts", "analysis-artifacts-b:/artifacts-b"]
     depends_on:
       db: {condition: service_healthy}
       redis: {condition: service_healthy}
@@ -75,3 +76,4 @@ volumes:
   db-data:
   redis-data:
   analysis-artifacts:
+  analysis-artifacts-b:

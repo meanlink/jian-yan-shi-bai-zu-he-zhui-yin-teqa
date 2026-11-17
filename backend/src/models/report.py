@@ -18,3 +18,4 @@ class Delivery(Base):
     checksum: Mapped[str] = mapped_column(String(64))
     filename: Mapped[str] = mapped_column(String(160))
     destination: Mapped[str] = mapped_column(String(120))
+    disk: Mapped[str | None] = mapped_column(String(255), nullable=True)

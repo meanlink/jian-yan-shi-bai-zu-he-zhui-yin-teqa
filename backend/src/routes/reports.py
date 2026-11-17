@@ -3,11 +3,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 from sqlalchemy import select
 from src.config.database import get_db
-from src.config.settings import ARTIFACT_DIR
 from src.models import Report, Delivery
 from src.schemas.report import ReportInput
 from src.middlewares.auth import current_user, admin_only
 from src.services import reports
+from src.services.storage import current_dir
 from src.services.audit import record
 from src.utils.serialization import report_dict, delivery_dict
 router=APIRouter()
@@ -33,6 +33,7 @@ def download(id:int,format:str='csv',db=Depends(get_db),u=Depends(current_user))
     if not d:raise HTTPException(404,'归档不存在')
     if format not in ('csv','json'):raise HTTPException(422,'支持 CSV 或 JSON')
     filename=d.filename+('.json' if format=='json' else '')
-    p=os.path.join(ARTIFACT_DIR,filename)
+    # 旧地址不变：按归档当前登记的读取盘取件，迁盘核验齐全后指向新盘，内容始终是同一原件。
+    p=os.path.join(d.disk or current_dir(db),filename)
     if not os.path.exists(p):raise HTTPException(404,'归档文件不存在，请重新安排分发')
     return FileResponse(p,filename=filename,media_type='application/json' if format=='json' else 'text/csv; charset=utf-8')

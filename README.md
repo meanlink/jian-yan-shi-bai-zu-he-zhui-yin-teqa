@@ -6,6 +6,9 @@
 数据接入（JSON/CSV、字段验证、批次指纹）→ 参数化分析（异步 Python worker）→ 结果复核（指标、图形、明细、解释、批准）→ 定时分发（本地收件箱、CSV/JSON、SHA256）；另有业务总览和审计轨迹。
 三个贯穿全栈的实体：Dataset 数据批次、Job 分析任务、Report 分发计划；辅助 User、Audit、Delivery。
 
+## 归档盘在线迁移
+简报归档盘支持在线迁盘（分发档案页操作，仅负责人）：发起后新归档立即写入新盘；存量与切换前已开写的归档由 worker 逐份补登记、复制并核验两件附件（CSV + JSON 边车），核验齐全才把该简报改读新盘，损坏则保留旧盘可读并列明原因。下载与搬迁并发时旧地址始终指向同一原件；重试幂等，不重复登记、不误删源件。全部归档与在途写入核对完成后才允许退役旧盘（仅清理已核验登记的源件）。演示用两处本地存储：`analysis-artifacts`（/artifacts）与 `analysis-artifacts-b`（/artifacts-b）两个命名卷，可用 `ARTIFACT_DIR_NEXT` 调整默认新盘位置。
+
 ## 快速启动
 ```bash
 cp .env.example .env

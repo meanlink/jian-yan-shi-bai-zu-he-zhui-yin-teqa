@@ -1,7 +1,7 @@
 import time, os, csv, io, hashlib, json
 from fastapi import HTTPException
 from src.models import Job, Report, Delivery
-from src.config.settings import ARTIFACT_DIR
+from src.services.storage import current_dir, begin_inflight, end_inflight, atomic_write
 def create(db, data):
     j=db.get(Job,data.job_id)
     if not j or j.status!='completed' or not j.approved:
@@ -24,11 +24,18 @@ def deliver(db, report):
     writer.writerow([safe(c['label']) for c in cols])
     for row in table.get('rows',[]): writer.writerow([safe(row.get(c['key'],'')) for c in cols])
     data=out.getvalue().encode('utf-8')
-    delivery=Delivery(report_id=report.id, created_at=time.time(), checksum=hashlib.sha256(data).hexdigest(), filename='', destination=report.destination)
+    directory=current_dir(db)
+    os.makedirs(directory,exist_ok=True)
+    delivery=Delivery(report_id=report.id, created_at=time.time(), checksum=hashlib.sha256(data).hexdigest(), filename='', destination=report.destination, disk=directory)
     db.add(delivery); db.flush()
     delivery.filename=f'report-{report.id}-delivery-{delivery.id}.csv'
-    os.makedirs(ARTIFACT_DIR,exist_ok=True)
-    with open(os.path.join(ARTIFACT_DIR,delivery.filename),'wb') as f:f.write(data)
-    with open(os.path.join(ARTIFACT_DIR,delivery.filename+'.json'),'w') as f: json.dump({'job':j.name,'params':j.params,'result':j.result,'checksum':delivery.checksum},f,ensure_ascii=False,allow_nan=False)
+    # 开写先落在途标记：迁盘核对与旧盘退役都会等待在途写入完结。
+    marker=begin_inflight(directory)
+    try:
+        atomic_write(os.path.join(directory,delivery.filename), data)
+        meta=json.dumps({'job':j.name,'params':j.params,'result':j.result,'checksum':delivery.checksum},ensure_ascii=False,allow_nan=False).encode('utf-8')
+        atomic_write(os.path.join(directory,delivery.filename+'.json'), meta)
+    finally:
+        end_inflight(marker)
     report.next_run=time.time()+report.interval_seconds
     return delivery
